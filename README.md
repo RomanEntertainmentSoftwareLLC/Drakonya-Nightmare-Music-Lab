@@ -1,3 +1,5 @@
+<img width="1254" height="1254" alt="Drakonya Nightmare Music Lab Logo" src="https://github.com/user-attachments/assets/ad435a01-0ea5-407c-8bc7-7794cafdcefb" />
+
 # Drakonya Nightmare AI Music Lab
 
 Drakonya Nightmare AI Music Lab is a standalone Hermes-powered AI music and media production system.
