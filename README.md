@@ -27,7 +27,7 @@ It must not depend on ACC's hardcoded path:
 
 The project root is controlled by:
 
-    DRAKONYA_ROOT=/opt/drakonya-nightmare-lab
+    DRAKONYA_ROOT=/opt/drakonya-nightmare-music-lab
 
 ## Internal Joke
 
