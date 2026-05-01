@@ -1,0 +1,3 @@
+date,category,tool,vendor,description,amount_usd,billing_cycle,required,notes
+2026-05-01,music_generation,Suno Pro,Suno,Monthly Suno subscription,10.00,monthly,yes,Used for AI music generation
+2026-05-01,distribution,DistroKid Musician Plus,DistroKid,Annual music distribution subscription,44.00,annual,yes,Used for Spotify Apple Music Amazon Pandora YouTube Music and more
