@@ -1,0 +1,33 @@
+# Secrets / local env
+.env
+*.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Local state / logs / generated outputs
+state/*.sqlite3
+state/*.db
+logs/*
+!logs/.gitkeep
+
+# Generated media assets
+data/tracks/*
+data/covers/*
+data/videos/*
+data/releases/*
+data/analytics/*
+data/slop_bin/*
+
+!data/tracks/.gitkeep
+!data/covers/.gitkeep
+!data/videos/.gitkeep
+!data/releases/.gitkeep
+!data/analytics/.gitkeep
+!data/slop_bin/.gitkeep
