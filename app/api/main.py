@@ -115,3 +115,103 @@ def download_generation(task_id: str, batch_id: str = "inbox") -> dict:
             for track in tracks
         ],
     }
+
+
+class CreateJobBody(BaseModel):
+    prompt: str = Field(min_length=1)
+    batch_id: str = Field(min_length=1)
+    title: str | None = None
+    genre: str | None = None
+    provider: str = "manual_suno"
+
+
+class SelectWinnerBody(BaseModel):
+    winner_variant_id: str = Field(pattern="^[AB]$")
+    notes: str | None = None
+
+
+@app.post("/jobs/generate")
+def create_job(body: CreateJobBody) -> dict:
+    from app.core.jobs import create_generation_job
+
+    job = create_generation_job(
+        prompt=body.prompt,
+        batch_id=body.batch_id,
+        title=body.title,
+        genre=body.genre,
+        provider=body.provider,
+    )
+
+    return {
+        "job_id": job.job_id,
+        "batch_id": job.batch_id,
+        "status": job.status,
+        "provider": job.provider,
+        "variants": [variant.__dict__ for variant in job.variants],
+    }
+
+
+@app.get("/jobs")
+def get_jobs() -> dict:
+    from app.core.jobs import list_jobs
+
+    jobs = list_jobs()
+    return {
+        "jobs": [
+            {
+                "job_id": job.job_id,
+                "batch_id": job.batch_id,
+                "title": job.title,
+                "genre": job.genre,
+                "status": job.status,
+                "provider": job.provider,
+                "winner_variant_id": job.winner_variant_id,
+                "created_at": job.created_at,
+            }
+            for job in jobs
+        ]
+    }
+
+
+@app.get("/jobs/{job_id}")
+def get_job(job_id: str) -> dict:
+    from app.core.jobs import load_job
+
+    try:
+        job = load_job(job_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return {
+        "job_id": job.job_id,
+        "batch_id": job.batch_id,
+        "prompt": job.prompt,
+        "title": job.title,
+        "genre": job.genre,
+        "status": job.status,
+        "provider": job.provider,
+        "created_at": job.created_at,
+        "updated_at": job.updated_at,
+        "winner_variant_id": job.winner_variant_id,
+        "notes": job.notes,
+        "variants": [variant.__dict__ for variant in job.variants],
+    }
+
+
+@app.post("/jobs/{job_id}/select-winner")
+def choose_winner(job_id: str, body: SelectWinnerBody) -> dict:
+    from app.core.jobs import select_winner
+
+    try:
+        job = select_winner(job_id, body.winner_variant_id, body.notes)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "job_id": job.job_id,
+        "status": job.status,
+        "winner_variant_id": job.winner_variant_id,
+        "variants": [variant.__dict__ for variant in job.variants],
+    }
