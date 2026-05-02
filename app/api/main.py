@@ -215,3 +215,27 @@ def choose_winner(job_id: str, body: SelectWinnerBody) -> dict:
         "winner_variant_id": job.winner_variant_id,
         "variants": [variant.__dict__ for variant in job.variants],
     }
+
+
+class AttachVariantBody(BaseModel):
+    source_audio_path: str = Field(min_length=1)
+
+
+@app.post("/jobs/{job_id}/variants/{variant_id}/attach")
+def attach_variant(job_id: str, variant_id: str, body: AttachVariantBody) -> dict:
+    from pathlib import Path
+    from app.core.jobs import attach_variant_audio
+
+    try:
+        job = attach_variant_audio(job_id, variant_id.upper(), Path(body.source_audio_path))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "job_id": job.job_id,
+        "batch_id": job.batch_id,
+        "status": job.status,
+        "variants": [variant.__dict__ for variant in job.variants],
+    }
