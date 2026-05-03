@@ -19,6 +19,7 @@ def get_music_provider():
             "yes",
             "on",
         }
-        return SunoPrivateProvider(enabled=enabled)
+        sidecar_url = os.getenv("SUNO_SIDECAR_URL", "http://127.0.0.1:8766")
+        return SunoPrivateProvider(enabled=enabled, sidecar_url=sidecar_url)
 
     raise ValueError(f"Unknown SUNO_PROVIDER: {provider}")

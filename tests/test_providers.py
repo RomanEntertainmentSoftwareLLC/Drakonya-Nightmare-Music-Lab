@@ -48,3 +48,58 @@ def test_manual_download_imports_existing_audio(tmp_path: Path):
     assert len(tracks) == 1
     assert tracks[0].title == "fake_track"
     assert tracks[0].audio_path == audio
+
+
+def test_suno_private_generate_uses_sidecar(monkeypatch):
+    provider = SunoPrivateProvider(enabled=True, sidecar_url="http://sidecar-test")
+
+    def fake_request_json(method, path, payload=None):
+        assert method == "POST"
+        assert path == "/suno/generate"
+        assert payload["prompt"] == "melodic vampire dubstep"
+        return {
+            "sidecar_job_id": "SUNO-TEST",
+            "batch_id": "BATCH-TEST",
+            "title": "Blood Drop Test",
+            "state": "created",
+            "notes": "fake sidecar response",
+        }
+
+    monkeypatch.setattr(provider, "_request_json", fake_request_json)
+
+    task = provider.generate(
+        GenerationRequest(
+            prompt="melodic vampire dubstep",
+            batch_id="BATCH-TEST",
+            title="Blood Drop Test",
+        )
+    )
+
+    assert task.provider == "suno_private"
+    assert task.task_id == "SUNO-TEST"
+    assert task.state == "submitted"
+    assert task.batch_id == "BATCH-TEST"
+
+
+def test_suno_private_status_uses_sidecar(monkeypatch):
+    provider = SunoPrivateProvider(enabled=True, sidecar_url="http://sidecar-test")
+
+    def fake_request_json(method, path, payload=None):
+        assert method == "GET"
+        assert path == "/suno/jobs/SUNO-TEST"
+        return {
+            "sidecar_job_id": "SUNO-TEST",
+            "batch_id": "BATCH-TEST",
+            "title": "Blood Drop Test",
+            "state": "running",
+            "notes": "fake running job",
+        }
+
+    monkeypatch.setattr(provider, "_request_json", fake_request_json)
+
+    task = provider.status("SUNO-TEST")
+
+    assert task.provider == "suno_private"
+    assert task.task_id == "SUNO-TEST"
+    assert task.state == "running"
+    assert task.batch_id == "BATCH-TEST"
