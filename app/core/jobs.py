@@ -36,6 +36,7 @@ class GenerationJob:
     genre: str | None = None
     status: str = JOB_STATUS_CREATED
     provider: str = "manual_suno"
+    provider_task_id: str | None = None
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     variants: list[TrackVariant] = field(default_factory=list)
@@ -173,5 +174,14 @@ def select_winner(job_id: str, winner_variant_id: str, notes: str | None = None)
 
     job.winner_variant_id = winner_variant_id
     job.status = JOB_STATUS_SELECTED
+    job.notes = notes
+    return save_job(job)
+
+
+def mark_job_submitted(job_id: str, provider_task_id: str, provider: str, notes: str | None = None) -> GenerationJob:
+    job = load_job(job_id)
+    job.provider_task_id = provider_task_id
+    job.provider = provider
+    job.status = JOB_STATUS_GENERATED
     job.notes = notes
     return save_job(job)

@@ -94,3 +94,31 @@ def test_attach_variant_audio_and_select_winner_api(tmp_path):
     statuses = {variant["variant_id"]: variant["status"] for variant in data["variants"]}
     assert statuses["A"] == "APPROVED"
     assert statuses["B"] == "SLOP_BIN"
+
+
+def test_create_job_and_submit_to_manual_provider(monkeypatch):
+    monkeypatch.delenv("SUNO_PROVIDER", raising=False)
+
+    create_response = client.post(
+        "/jobs/generate",
+        json={
+            "prompt": "dark gothic techno test",
+            "batch_id": "BATCH-SUBMIT-TEST",
+            "title": "Submit Test Track",
+            "genre": "gothic techno",
+            "provider": "manual_suno",
+        },
+    )
+
+    assert create_response.status_code == 200
+    job_id = create_response.json()["job_id"]
+
+    submit_response = client.post(f"/jobs/{job_id}/submit")
+
+    assert submit_response.status_code == 200
+    data = submit_response.json()
+
+    assert data["job_id"] == job_id
+    assert data["provider"] == "manual_suno"
+    assert data["provider_task_id"].startswith("manual-")
+    assert data["status"] == "generated"

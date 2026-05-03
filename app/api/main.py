@@ -351,3 +351,45 @@ def attach_variant(job_id: str, variant_id: str, body: AttachVariantBody) -> dic
         "status": job.status,
         "variants": [variant.__dict__ for variant in job.variants],
     }
+
+
+@app.post("/jobs/{job_id}/submit")
+def submit_job_to_provider(job_id: str) -> dict:
+    from app.core.jobs import load_job, mark_job_submitted
+    from app.providers.base import GenerationRequest
+    from app.providers.factory import get_music_provider
+
+    try:
+        job = load_job(job_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    provider = get_music_provider()
+
+    try:
+        task = provider.generate(
+            GenerationRequest(
+                prompt=job.prompt,
+                batch_id=job.batch_id,
+                title=job.title,
+                genre=job.genre,
+            )
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    updated = mark_job_submitted(
+        job_id=job.job_id,
+        provider_task_id=task.task_id,
+        provider=task.provider,
+        notes=task.message,
+    )
+
+    return {
+        "job_id": updated.job_id,
+        "batch_id": updated.batch_id,
+        "status": updated.status,
+        "provider": updated.provider,
+        "provider_task_id": updated.provider_task_id,
+        "notes": updated.notes,
+    }
