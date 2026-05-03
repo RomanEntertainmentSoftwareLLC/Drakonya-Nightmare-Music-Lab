@@ -31,3 +31,8 @@ data/slop_bin/*
 !data/releases/.gitkeep
 !data/analytics/.gitkeep
 !data/slop_bin/.gitkeep
+
+# Runtime job records
+data/jobs/*.json
+data/jobs/*
+!data/jobs/.gitkeep
