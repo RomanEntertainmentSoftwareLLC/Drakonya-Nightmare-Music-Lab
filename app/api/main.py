@@ -3,19 +3,131 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse
+
 from pydantic import BaseModel, Field
 
 from app.providers.base import GenerationRequest
 from app.providers.factory import get_music_provider
 from app.core.paths import project_root
 
-
 app = FastAPI(
     title="Drakonya Nightmare Music Lab API",
     version="0.1.0",
     description="Internal API for Drakonya Nightmare Music Lab.",
+    docs_url=None,
 )
 
+@app.get("/docs", include_in_schema=False)
+def custom_swagger_ui_html() -> HTMLResponse:
+    html = get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title="Drakonya Nightmare Music Lab API",
+        swagger_favicon_url="",
+    )
+
+    dark_css = """
+    <style>
+      body {
+        background: #08080c !important;
+        color: #e8e8ee !important;
+      }
+
+      .swagger-ui {
+        background: #08080c !important;
+        color: #e8e8ee !important;
+      }
+
+      .swagger-ui .topbar {
+        display: none !important;
+      }
+
+      .swagger-ui .info .title,
+      .swagger-ui .info p,
+      .swagger-ui .info li,
+      .swagger-ui .opblock-tag,
+      .swagger-ui .opblock .opblock-summary-description,
+      .swagger-ui .opblock .opblock-summary-path,
+      .swagger-ui .opblock .opblock-summary-method,
+      .swagger-ui table thead tr td,
+      .swagger-ui table thead tr th,
+      .swagger-ui .parameter__name,
+      .swagger-ui .parameter__type,
+      .swagger-ui .response-col_status,
+      .swagger-ui .response-col_description,
+      .swagger-ui label,
+      .swagger-ui .tab li,
+      .swagger-ui .model-title,
+      .swagger-ui .model,
+      .swagger-ui .model-box,
+      .swagger-ui .prop-type,
+      .swagger-ui .prop-format,
+      .swagger-ui .servers-title {
+        color: #e8e8ee !important;
+      }
+
+      .swagger-ui .scheme-container,
+      .swagger-ui .opblock,
+      .swagger-ui .opblock-section-header,
+      .swagger-ui .responses-wrapper,
+      .swagger-ui .parameters-container,
+      .swagger-ui .model-box,
+      .swagger-ui section.models,
+      .swagger-ui textarea,
+      .swagger-ui input,
+      .swagger-ui select {
+        background: #11111a !important;
+        color: #e8e8ee !important;
+        border-color: #35354a !important;
+      }
+
+      .swagger-ui .opblock.opblock-get {
+        background: rgba(61, 105, 180, 0.16) !important;
+        border-color: #3d69b4 !important;
+      }
+
+      .swagger-ui .opblock.opblock-post {
+        background: rgba(64, 170, 120, 0.16) !important;
+        border-color: #40aa78 !important;
+      }
+
+      .swagger-ui .opblock.opblock-delete {
+        background: rgba(190, 70, 70, 0.16) !important;
+        border-color: #be4646 !important;
+      }
+
+      .swagger-ui .opblock.opblock-put,
+      .swagger-ui .opblock.opblock-patch {
+        background: rgba(200, 150, 60, 0.16) !important;
+        border-color: #c8963c !important;
+      }
+
+      .swagger-ui .btn,
+      .swagger-ui button {
+        background: #1d1d2b !important;
+        color: #f5f5ff !important;
+        border-color: #55556d !important;
+      }
+
+      .swagger-ui .btn.execute {
+        background: #8b1e3f !important;
+        border-color: #d33663 !important;
+        color: #fff !important;
+      }
+
+      .swagger-ui .highlight-code,
+      .swagger-ui .microlight,
+      .swagger-ui pre {
+        background: #050508 !important;
+        color: #e8e8ee !important;
+      }
+    </style>
+    """
+
+    return HTMLResponse(
+        html.body.decode("utf-8").replace("</head>", f"{dark_css}</head>")
+    )
 
 class GenerateRequestBody(BaseModel):
     prompt: str = Field(min_length=1)

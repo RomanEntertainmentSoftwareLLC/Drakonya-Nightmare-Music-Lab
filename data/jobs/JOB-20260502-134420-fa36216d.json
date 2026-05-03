@@ -1,0 +1,31 @@
+{
+  "job_id": "JOB-20260502-134420-fa36216d",
+  "batch_id": "BATCH-API-TEST",
+  "prompt": "dark gothic techno test",
+  "title": "API Test Track",
+  "genre": "gothic techno",
+  "status": "selected",
+  "provider": "manual_suno",
+  "created_at": "2026-05-02T17:44:20.214403+00:00",
+  "updated_at": "2026-05-02T17:44:20.250971+00:00",
+  "variants": [
+    {
+      "variant_id": "A",
+      "status": "APPROVED",
+      "audio_path": "/opt/drakonya-nightmare-music-lab/data/tracks/BATCH-API-TEST/JOB-20260502-134420-fa36216d/JOB-20260502-134420-fa36216d_A.mp3",
+      "title": "API Test Track version A",
+      "score": null,
+      "notes": null
+    },
+    {
+      "variant_id": "B",
+      "status": "SLOP_BIN",
+      "audio_path": "/opt/drakonya-nightmare-music-lab/data/slop_bin/BATCH-API-TEST/JOB-20260502-134420-fa36216d/JOB-20260502-134420-fa36216d_B.mp3",
+      "title": "API Test Track version B",
+      "score": null,
+      "notes": null
+    }
+  ],
+  "winner_variant_id": "A",
+  "notes": "Version A has better energy."
+}
