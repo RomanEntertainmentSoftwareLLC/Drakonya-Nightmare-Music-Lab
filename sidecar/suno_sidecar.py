@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import shutil
+import subprocess
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -8,6 +11,8 @@ from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+from app.core.paths import project_root
 
 
 JobState = Literal[
@@ -42,6 +47,10 @@ class GenerateBody(BaseModel):
     genre: str | None = None
 
 
+class OpenSunoBody(BaseModel):
+    url: str | None = None
+
+
 app = FastAPI(
     title="Drakonya Suno Sidecar",
     version="0.1.0",
@@ -50,6 +59,15 @@ app = FastAPI(
 
 
 _JOBS: dict[str, SunoSidecarJob] = {}
+_BROWSER_PROCESS: subprocess.Popen | None = None
+
+
+BROWSER_CANDIDATES = [
+    "google-chrome",
+    "chromium",
+    "chromium-browser",
+    "firefox",
+]
 
 
 def _new_sidecar_job_id() -> str:
@@ -62,13 +80,101 @@ def _touch(job: SunoSidecarJob) -> SunoSidecarJob:
     return job
 
 
+def _resolve_path(value: str | None, default_relative: str) -> Path:
+    if value:
+        path = Path(value).expanduser()
+        if path.is_absolute():
+            return path
+        return project_root() / path
+    return project_root() / default_relative
+
+
+def suno_browser_profile_dir() -> Path:
+    return _resolve_path(os.getenv("SUNO_BROWSER_PROFILE_DIR"), "state/suno_browser_profile")
+
+
+def suno_download_dir() -> Path:
+    return _resolve_path(os.getenv("SUNO_BROWSER_DOWNLOAD_DIR"), "data/inbox/suno_downloads")
+
+
+def find_browser_binary() -> Path | None:
+    configured = os.getenv("SUNO_BROWSER_BIN")
+    if configured:
+        path = Path(configured).expanduser()
+        if path.exists():
+            return path
+        found = shutil.which(configured)
+        if found:
+            return Path(found)
+        return path
+
+    for candidate in BROWSER_CANDIDATES:
+        found = shutil.which(candidate)
+        if found:
+            return Path(found)
+
+    return None
+
+
+def build_browser_command(browser: Path, url: str) -> list[str]:
+    profile_dir = suno_browser_profile_dir()
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    suno_download_dir().mkdir(parents=True, exist_ok=True)
+
+    name = browser.name.lower()
+    if "firefox" in name:
+        return [str(browser), "-profile", str(profile_dir), "-new-window", url]
+
+    return [
+        str(browser),
+        f"--user-data-dir={profile_dir}",
+        "--no-first-run",
+        "--new-window",
+        url,
+    ]
+
+
 @app.get("/health")
 def health() -> dict:
+    browser = find_browser_binary()
     return {
         "ok": True,
         "service": "drakonya-suno-sidecar",
         "state": "skeleton",
         "live_suno_control": False,
+        "browser_available": browser is not None and browser.exists(),
+        "browser_binary": str(browser) if browser else None,
+        "browser_profile_dir": str(suno_browser_profile_dir()),
+        "download_dir": str(suno_download_dir()),
+    }
+
+
+@app.post("/suno/open")
+def open_suno(body: OpenSunoBody | None = None) -> dict:
+    global _BROWSER_PROCESS
+
+    browser = find_browser_binary()
+    if not browser or not browser.exists():
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "No supported browser found. Install google-chrome, chromium, "
+                "chromium-browser, or firefox; or set SUNO_BROWSER_BIN."
+            ),
+        )
+
+    url = (body.url if body else None) or os.getenv("SUNO_URL") or "https://suno.com"
+    command = build_browser_command(browser, url)
+    _BROWSER_PROCESS = subprocess.Popen(command)
+
+    return {
+        "ok": True,
+        "url": url,
+        "browser_binary": str(browser),
+        "browser_profile_dir": str(suno_browser_profile_dir()),
+        "download_dir": str(suno_download_dir()),
+        "pid": _BROWSER_PROCESS.pid,
+        "notes": "Opened Suno in a dedicated local browser profile. Login manually if needed.",
     }
 
 

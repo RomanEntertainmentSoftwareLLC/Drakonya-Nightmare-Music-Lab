@@ -12,12 +12,17 @@ __pycache__/
 venv/
 
 # Local state / logs / generated outputs
-state/*.sqlite3
-state/*.db
+state/*
+!state/.gitkeep
 logs/*
 !logs/.gitkeep
 
 # Generated media assets
+data/inbox/suno_downloads/*
+!data/inbox/
+!data/inbox/.gitkeep
+!data/inbox/suno_downloads/
+!data/inbox/suno_downloads/.gitkeep
 data/tracks/*
 data/covers/*
 data/videos/*

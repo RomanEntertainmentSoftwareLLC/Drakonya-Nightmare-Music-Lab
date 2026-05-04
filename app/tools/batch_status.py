@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from app.core.paths import project_root
+from app.tools.create_batch import safe_slug
 
 
 CHECKS = [
@@ -26,7 +27,19 @@ def find_batch(batch_id: str) -> Path:
     if direct.exists():
         return direct
 
-    matches = sorted(batches_dir.glob(f"*{batch_id}*")) if batches_dir.exists() else []
+    normalized = safe_slug(batch_id)
+    search_terms = [batch_id]
+    if normalized and normalized != batch_id:
+        search_terms.append(normalized)
+
+    matches: list[Path] = []
+    if batches_dir.exists():
+        seen: set[Path] = set()
+        for term in search_terms:
+            for match in sorted(batches_dir.glob(f"*{term}*")):
+                if match not in seen:
+                    matches.append(match)
+                    seen.add(match)
     if len(matches) == 1:
         return matches[0]
 
