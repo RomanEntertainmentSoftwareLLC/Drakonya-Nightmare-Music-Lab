@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import asdict, dataclass, field
@@ -25,6 +27,9 @@ JobState = Literal[
 ]
 
 
+AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".flac", ".aac", ".ogg"}
+
+
 @dataclass
 class SunoSidecarJob:
     sidecar_job_id: str
@@ -35,6 +40,7 @@ class SunoSidecarJob:
     state: JobState = "created"
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    prompt_file: str | None = None
     version_a_path: str | None = None
     version_b_path: str | None = None
     notes: str | None = None
@@ -45,16 +51,22 @@ class GenerateBody(BaseModel):
     batch_id: str = Field(min_length=1)
     title: str | None = None
     genre: str | None = None
+    copy_to_clipboard: bool = True
 
 
 class OpenSunoBody(BaseModel):
     url: str | None = None
 
 
+class DownloadScanBody(BaseModel):
+    allow_latest: bool = True
+    min_files: int = 2
+
+
 app = FastAPI(
     title="Drakonya Suno Sidecar",
-    version="0.1.0",
-    description="Local sidecar for future Suno account/browser control.",
+    version="0.2.0",
+    description="Local sidecar for Suno browser assist and download inbox mapping.",
 )
 
 
@@ -70,9 +82,23 @@ BROWSER_CANDIDATES = [
 ]
 
 
+CLIPBOARD_COMMANDS = [
+    ["wl-copy"],
+    ["xclip", "-selection", "clipboard"],
+    ["xsel", "--clipboard", "--input"],
+    ["clip.exe"],
+]
+
+
 def _new_sidecar_job_id() -> str:
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     return f"SUNO-{stamp}-{uuid4().hex[:8]}"
+
+
+def _safe_slug(value: str | None) -> str:
+    raw = (value or "").strip().lower()
+    raw = re.sub(r"[^a-z0-9]+", "-", raw)
+    return raw.strip("-") or "untitled"
 
 
 def _touch(job: SunoSidecarJob) -> SunoSidecarJob:
@@ -94,7 +120,80 @@ def suno_browser_profile_dir() -> Path:
 
 
 def suno_download_dir() -> Path:
-    return _resolve_path(os.getenv("SUNO_BROWSER_DOWNLOAD_DIR"), "data/inbox/suno_downloads")
+    path = _resolve_path(os.getenv("SUNO_BROWSER_DOWNLOAD_DIR"), "data/inbox/suno_downloads")
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def suno_sidecar_state_dir() -> Path:
+    path = _resolve_path(os.getenv("SUNO_SIDECAR_STATE_DIR"), "state/suno_sidecar")
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def sidecar_jobs_dir() -> Path:
+    path = suno_sidecar_state_dir() / "jobs"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def sidecar_prompts_dir() -> Path:
+    path = suno_sidecar_state_dir() / "prompts"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _job_path(sidecar_job_id: str) -> Path:
+    return sidecar_jobs_dir() / f"{sidecar_job_id}.json"
+
+
+def _save_job(job: SunoSidecarJob) -> SunoSidecarJob:
+    _touch(job)
+    _job_path(job.sidecar_job_id).write_text(json.dumps(asdict(job), indent=2) + "\n", encoding="utf-8")
+    _JOBS[job.sidecar_job_id] = job
+    return job
+
+
+def _load_job(sidecar_job_id: str) -> SunoSidecarJob | None:
+    job = _JOBS.get(sidecar_job_id)
+    if job:
+        return job
+
+    path = _job_path(sidecar_job_id)
+    if not path.exists():
+        return None
+
+    job = SunoSidecarJob(**json.loads(path.read_text(encoding="utf-8")))
+    _JOBS[sidecar_job_id] = job
+    return job
+
+
+def _stage_prompt(job: SunoSidecarJob) -> Path:
+    slug = _safe_slug(job.title or job.sidecar_job_id)
+    prompt_path = sidecar_prompts_dir() / f"{job.sidecar_job_id}-{slug}.txt"
+    prompt_path.write_text(job.prompt.strip() + "\n", encoding="utf-8")
+    job.prompt_file = str(prompt_path)
+    return prompt_path
+
+
+def _copy_prompt_to_clipboard(prompt: str) -> str:
+    for command in CLIPBOARD_COMMANDS:
+        if not shutil.which(command[0]):
+            continue
+        try:
+            subprocess.run(
+                command,
+                input=prompt.encode("utf-8"),
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            return f"Copied prompt to clipboard with {command[0]}."
+        except (OSError, subprocess.SubprocessError):
+            continue
+
+    return "Clipboard copy skipped: no supported clipboard command found."
 
 
 def find_browser_binary() -> Path | None:
@@ -134,18 +233,70 @@ def build_browser_command(browser: Path, url: str) -> list[str]:
     ]
 
 
+def _audio_candidates(job: SunoSidecarJob, allow_latest: bool) -> list[Path]:
+    download_dir = suno_download_dir()
+    files = [path for path in download_dir.rglob("*") if path.is_file() and path.suffix.lower() in AUDIO_EXTENSIONS]
+
+    if not files:
+        return []
+
+    tokens = {
+        _safe_slug(job.sidecar_job_id),
+        _safe_slug(job.title),
+        _safe_slug(job.batch_id),
+    }
+    tokens.discard("untitled")
+
+    matched = [path for path in files if any(token and token in _safe_slug(path.stem) for token in tokens)]
+    if matched:
+        return sorted(matched, key=lambda path: path.stat().st_mtime)
+
+    if not allow_latest:
+        return []
+
+    try:
+        created_at = datetime.fromisoformat(job.created_at).timestamp()
+        recent = [path for path in files if path.stat().st_mtime >= created_at - 120]
+        if recent:
+            return sorted(recent, key=lambda path: path.stat().st_mtime)
+    except ValueError:
+        pass
+
+    return sorted(files, key=lambda path: path.stat().st_mtime)[-2:]
+
+
+def _map_downloads(job: SunoSidecarJob, allow_latest: bool, min_files: int) -> SunoSidecarJob:
+    candidates = _audio_candidates(job, allow_latest=allow_latest)
+
+    if len(candidates) < min_files:
+        job.state = "running"
+        job.notes = (
+            f"Found {len(candidates)} audio file(s) in the Suno download inbox; "
+            f"waiting for {min_files}."
+        )
+        return _save_job(job)
+
+    selected = candidates[:2]
+    job.version_a_path = str(selected[0]) if len(selected) >= 1 else None
+    job.version_b_path = str(selected[1]) if len(selected) >= 2 else None
+    job.state = "downloaded" if job.version_a_path and job.version_b_path else "completed"
+    job.notes = "Mapped Suno download inbox files to version A and version B."
+    return _save_job(job)
+
+
 @app.get("/health")
 def health() -> dict:
     browser = find_browser_binary()
     return {
         "ok": True,
         "service": "drakonya-suno-sidecar",
-        "state": "skeleton",
+        "state": "browser-assist",
         "live_suno_control": False,
         "browser_available": browser is not None and browser.exists(),
         "browser_binary": str(browser) if browser else None,
         "browser_profile_dir": str(suno_browser_profile_dir()),
         "download_dir": str(suno_download_dir()),
+        "sidecar_state_dir": str(suno_sidecar_state_dir()),
     }
 
 
@@ -188,41 +339,57 @@ def generate(body: GenerateBody) -> dict:
         batch_id=body.batch_id,
         title=body.title,
         genre=body.genre,
-        state="created",
-        notes=(
-            "Skeleton only. Future implementation will submit this prompt "
-            "to Suno and produce two generated audio versions."
-        ),
+        state="submitted",
     )
 
-    _JOBS[sidecar_job_id] = job
+    prompt_path = _stage_prompt(job)
+    clipboard_note = _copy_prompt_to_clipboard(body.prompt) if body.copy_to_clipboard else "Clipboard copy disabled by request."
+    job.notes = (
+        "Prompt staged for Suno browser/manual-assist submission. "
+        f"Prompt file: {prompt_path}. {clipboard_note}"
+    )
 
+    _save_job(job)
     return asdict(job)
 
 
 @app.get("/suno/jobs/{sidecar_job_id}")
 def get_job(sidecar_job_id: str) -> dict:
-    job = _JOBS.get(sidecar_job_id)
+    job = _load_job(sidecar_job_id)
     if not job:
         raise HTTPException(status_code=404, detail=f"Sidecar job not found: {sidecar_job_id}")
 
     return asdict(job)
 
 
+@app.get("/suno/downloads")
+def list_downloads() -> dict:
+    files = [
+        {
+            "path": str(path),
+            "name": path.name,
+            "size_bytes": path.stat().st_size,
+            "mtime": path.stat().st_mtime,
+        }
+        for path in sorted(suno_download_dir().rglob("*"))
+        if path.is_file() and path.suffix.lower() in AUDIO_EXTENSIONS
+    ]
+    return {"download_dir": str(suno_download_dir()), "files": files}
+
+
 @app.post("/suno/jobs/{sidecar_job_id}/download")
-def download_job(sidecar_job_id: str) -> dict:
-    job = _JOBS.get(sidecar_job_id)
+def download_job(sidecar_job_id: str, body: DownloadScanBody | None = None) -> dict:
+    job = _load_job(sidecar_job_id)
     if not job:
         raise HTTPException(status_code=404, detail=f"Sidecar job not found: {sidecar_job_id}")
 
-    job.state = "failed"
-    job.notes = (
-        "Download is not implemented yet. Future implementation will download "
-        "Suno version A and version B, then return both local file paths."
-    )
-    _touch(job)
+    request = body or DownloadScanBody()
+    job = _map_downloads(job, allow_latest=request.allow_latest, min_files=request.min_files)
 
-    raise HTTPException(status_code=501, detail=job.notes)
+    if not job.version_a_path and not job.version_b_path:
+        raise HTTPException(status_code=404, detail=job.notes)
+
+    return asdict(job)
 
 
 @app.get("/")

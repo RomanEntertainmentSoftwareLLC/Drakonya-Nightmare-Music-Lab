@@ -77,7 +77,7 @@ def test_sidecar_create_and_read_job():
     data = create.json()
     sidecar_job_id = data["sidecar_job_id"]
 
-    assert data["state"] == "created"
+    assert data["state"] == "submitted"
     assert data["batch_id"] == "BATCH-TEST"
 
     read = client.get(f"/suno/jobs/{sidecar_job_id}")
@@ -85,7 +85,7 @@ def test_sidecar_create_and_read_job():
     assert read.json()["sidecar_job_id"] == sidecar_job_id
 
 
-def test_sidecar_download_not_implemented():
+def test_sidecar_download_waits_for_files():
     create = client.post(
         "/suno/generate",
         json={
@@ -97,5 +97,5 @@ def test_sidecar_download_not_implemented():
 
     download = client.post(f"/suno/jobs/{sidecar_job_id}/download")
 
-    assert download.status_code == 501
-    assert "not implemented" in download.json()["detail"].lower()
+    assert download.status_code == 404
+    assert "waiting" in download.json()["detail"].lower()
