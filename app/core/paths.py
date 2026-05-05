@@ -38,6 +38,10 @@ def covers_dir() -> Path:
     return ensure_dir(data_dir() / "covers")
 
 
+def brands_dir() -> Path:
+    return ensure_dir(data_dir() / "brands")
+
+
 def videos_dir() -> Path:
     return ensure_dir(data_dir() / "videos")
 

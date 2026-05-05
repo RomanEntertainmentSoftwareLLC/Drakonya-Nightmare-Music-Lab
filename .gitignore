@@ -41,3 +41,7 @@ data/slop_bin/*
 data/jobs/*.json
 data/jobs/*
 !data/jobs/.gitkeep
+# Generated brand/logo assets
+data/brands/*
+!data/brands/
+!data/brands/.gitkeep
