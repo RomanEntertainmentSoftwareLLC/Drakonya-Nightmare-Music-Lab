@@ -1,0 +1,20 @@
+{
+  "distrokid": {
+    "enabled": true,
+    "account_scope": "primary account for now",
+    "default_albums_per_week": 1,
+    "max_albums_per_week": 2,
+    "allow_browser_form_fill": false,
+    "allow_final_submit": false,
+    "require_release_package_validation": true
+  },
+  "youtube": {
+    "enabled": true,
+    "prepare_long_mix_package": true,
+    "allow_browser_upload": false
+  },
+  "cost_control": {
+    "no_paid_api_calls_without_explicit_operator_approval": true,
+    "manual_first": true
+  }
+}
