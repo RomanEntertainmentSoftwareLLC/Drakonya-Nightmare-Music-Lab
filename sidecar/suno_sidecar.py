@@ -51,6 +51,7 @@ class GenerateBody(BaseModel):
     batch_id: str = Field(min_length=1)
     title: str | None = None
     genre: str | None = None
+    instrumental: bool = False
     copy_to_clipboard: bool = True
 
 

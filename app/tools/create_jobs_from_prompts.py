@@ -23,6 +23,7 @@ def _relative_to_root(path: Path) -> str:
 def _parse_prompt_entry(title: str, body_lines: list[str]) -> dict | None:
     genre = ""
     prompt_lines: list[str] = []
+    instrumental = False
     in_prompt = False
 
     for raw_line in body_lines:
@@ -31,6 +32,11 @@ def _parse_prompt_entry(title: str, body_lines: list[str]) -> dict | None:
 
         if stripped.lower().startswith("genre:") and not in_prompt:
             genre = stripped.split(":", 1)[1].strip()
+            continue
+
+        if stripped.lower().startswith("instrumental:") and not in_prompt:
+            value = stripped.split(":", 1)[1].strip().lower()
+            instrumental = value in {"1", "true", "yes", "on"}
             continue
 
         if stripped.lower() == "prompt:" and not in_prompt:
@@ -48,6 +54,7 @@ def _parse_prompt_entry(title: str, body_lines: list[str]) -> dict | None:
     return {
         "title": title.strip(),
         "genre": genre,
+        "instrumental": instrumental,
         "prompt": prompt,
     }
 
@@ -119,6 +126,7 @@ def create_jobs_from_prompts(
             title=entry["title"],
             genre=entry["genre"],
             provider=provider,
+            instrumental=bool(entry.get("instrumental", False)),
         )
         created_job_ids.append(job.job_id)
         existing_keys.add(key)

@@ -27,6 +27,7 @@ def submit_job(job_id: str, *, provider_name: str | None = None, force: bool = F
             batch_id=job.batch_id,
             title=job.title,
             genre=job.genre,
+            instrumental=job.instrumental,
         )
     )
 

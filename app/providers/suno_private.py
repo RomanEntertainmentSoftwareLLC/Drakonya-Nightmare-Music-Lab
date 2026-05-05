@@ -54,6 +54,7 @@ class SunoPrivateProvider:
                 "batch_id": request.batch_id,
                 "title": request.title,
                 "genre": request.genre,
+                "instrumental": request.instrumental,
             },
         )
 

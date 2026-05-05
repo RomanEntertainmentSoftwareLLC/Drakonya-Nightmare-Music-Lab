@@ -34,6 +34,7 @@ class GenerationJob:
     prompt: str
     title: str | None = None
     genre: str | None = None
+    instrumental: bool = False
     status: str = JOB_STATUS_CREATED
     provider: str = "manual_suno"
     provider_task_id: str | None = None
@@ -91,6 +92,7 @@ def create_generation_job(
     title: str | None = None,
     genre: str | None = None,
     provider: str = "manual_suno",
+    instrumental: bool = False,
 ) -> GenerationJob:
     job = GenerationJob(
         job_id=new_job_id(),
@@ -98,6 +100,7 @@ def create_generation_job(
         prompt=prompt,
         title=title,
         genre=genre,
+        instrumental=instrumental,
         provider=provider,
         variants=[
             TrackVariant(variant_id="A"),

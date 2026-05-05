@@ -15,6 +15,7 @@ def add_prompt(
     title: str,
     genre: str | None,
     prompt: str,
+    instrumental: bool = False,
 ) -> Path:
     batch_dir = find_batch(batch_id)
     prompt_file = batch_dir / PROMPT_RELATIVE_PATH
@@ -31,6 +32,7 @@ def add_prompt(
             f"## {title.strip()}",
             "",
             f"Genre: {(genre or '').strip()}",
+            f"Instrumental: {str(instrumental).lower()}",
             "",
             "Prompt:",
             "",
@@ -49,6 +51,7 @@ def main() -> None:
     parser.add_argument("--title", required=True, help="Track title")
     parser.add_argument("--genre", default=None, help="Prompt genre/style bucket")
     parser.add_argument("--prompt", required=True, help="Full Suno prompt text")
+    parser.add_argument("--instrumental", action="store_true", help="Mark this prompt as instrumental")
     args = parser.parse_args()
 
     prompt_file = add_prompt(
@@ -56,6 +59,7 @@ def main() -> None:
         title=args.title,
         genre=args.genre,
         prompt=args.prompt,
+        instrumental=args.instrumental,
     )
     print(f"Added prompt to: {prompt_file}")
 
