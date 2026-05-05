@@ -7,6 +7,7 @@ from pathlib import Path
 from app.core.jobs import attach_variant_audio, load_job
 from app.core.paths import project_root
 from app.providers.factory import get_music_provider
+from app.tools.cli_errors import fail, reject_placeholder_job_id
 
 
 VARIANT_ORDER = ["A", "B"]
@@ -28,10 +29,18 @@ def fetch_provider_downloads(
     provider_name: str | None = None,
     enable_private: bool = False,
 ) -> list[str]:
-    job = load_job(job_id)
+    reject_placeholder_job_id(job_id)
+
+    try:
+        job = load_job(job_id)
+    except FileNotFoundError:
+        fail(
+            f"Job not found: {job_id}",
+            hint="Run: python3 -m app.tools.jobs_status --batch EXACT_BATCH_ID\nThen copy the real JOB-... id.",
+        )
 
     if not job.provider_task_id:
-        raise SystemExit(f"Job has no provider_task_id yet: {job_id}")
+        fail(f"Job has no provider_task_id yet: {job_id}")
 
     if provider_name:
         os.environ["SUNO_PROVIDER"] = provider_name
@@ -43,13 +52,40 @@ def fetch_provider_downloads(
 
     provider = get_music_provider()
     target_dir = _resolve_output_dir(output_dir, job.batch_id, job.job_id)
-    tracks = provider.download(job.provider_task_id, target_dir)
+
+    try:
+        tracks = provider.download(job.provider_task_id, target_dir)
+    except RuntimeError as exc:
+        message = str(exc)
+
+        if "waiting for 2" in message or "Found 0 audio file" in message:
+            fail(
+                "Suno downloads are not ready yet.",
+                hint=(
+                    "Place both downloaded Suno MP3s into:\n"
+                    "data/inbox/suno_downloads/\n\n"
+                    "Check with:\n"
+                    "find data/inbox/suno_downloads -maxdepth 1 -type f | sort\n\n"
+                    f"Then rerun:\npython3 -m app.tools.fetch_provider_downloads {job_id} --provider {job.provider} "
+                    + ("--enable-private" if job.provider == "suno_private" else "")
+                ),
+            )
+
+        if "Could not reach Suno sidecar" in message or "Connection refused" in message:
+            fail(
+                "Suno sidecar is not running.",
+                hint="Start it in another terminal:\npython3 -m uvicorn sidecar.suno_sidecar:app --host 127.0.0.1 --port 8766",
+            )
+
+        raise
 
     if not tracks:
         print(f"No provider downloads found for job: {job_id}")
         return []
 
     attached: list[str] = []
+    updated = job
+
     for variant_id, track in zip(VARIANT_ORDER, tracks[:2]):
         updated = attach_variant_audio(job.job_id, variant_id, Path(track.audio_path))
         attached.append(variant_id)
@@ -57,7 +93,7 @@ def fetch_provider_downloads(
 
     print(f"Job: {job_id}")
     print(f"Attached: {', '.join(attached)}")
-    print(f"Status: {updated.status if attached else job.status}")
+    print(f"Status: {updated.status}")
     return attached
 
 

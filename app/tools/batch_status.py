@@ -47,7 +47,10 @@ def find_batch(batch_id: str) -> Path:
         raise SystemExit(f"Batch not found: {batch_id}")
 
     raise SystemExit(
-        "Multiple batches matched:\n" + "\n".join(str(match) for match in matches)
+        "Multiple batches matched. Use the exact batch folder name:\n"
+        + "\n".join(f"  {match.name}" for match in matches)
+        + "\n\nExample:\n"
+        + f"  python3 -m app.tools.jobs_status --batch \"{matches[-1].name}\""
     )
 
 

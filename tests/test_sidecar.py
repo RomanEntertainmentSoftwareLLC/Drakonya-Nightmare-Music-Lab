@@ -85,7 +85,8 @@ def test_sidecar_create_and_read_job():
     assert read.json()["sidecar_job_id"] == sidecar_job_id
 
 
-def test_sidecar_download_waits_for_files():
+def test_sidecar_download_waits_for_files(tmp_path, monkeypatch):
+    monkeypatch.setenv("DRAKONYA_ROOT", str(tmp_path))
     create = client.post(
         "/suno/generate",
         json={
