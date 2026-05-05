@@ -7,6 +7,7 @@ from app.tools.generate_song import generate_song
 from app.tools.jobs_status import jobs_status
 from app.tools.package_song_release import package_song_release
 from app.tools.select_job_winner import select_job_winner
+from app.tools.watch_downloads import watch_downloads
 
 
 def main() -> None:
@@ -36,6 +37,12 @@ def main() -> None:
     winner.add_argument("winner_variant")
     winner.add_argument("--notes", default=None)
     winner.add_argument("--no-slop-copy", action="store_true")
+
+    
+    watch = sub.add_parser("watch-downloads")
+    watch.add_argument("job_id")
+    watch.add_argument("--poll", type=float, default=2.0)
+    watch.add_argument("--timeout", type=float, default=300.0)
 
     package = sub.add_parser("package-song")
     package.add_argument("job_id")
@@ -74,6 +81,14 @@ def main() -> None:
             notes=args.notes,
             copy_loser_to_slop=not args.no_slop_copy,
         )
+
+    elif args.command == "watch-downloads":
+        watch_downloads(
+            args.job_id,
+            poll_seconds=args.poll,
+            timeout_seconds=args.timeout,
+        )
+
     elif args.command == "package-song":
         package_song_release(
             args.job_id,
