@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import uvicorn
 
 from app.tools.fetch_provider_downloads import fetch_provider_downloads
 from app.tools.generate_song import generate_song
@@ -13,6 +14,12 @@ from app.tools.watch_downloads import watch_downloads
 def main() -> None:
     parser = argparse.ArgumentParser(description="Drakonya Nightmare Music Lab unified CLI.")
     sub = parser.add_subparsers(dest="command", required=True)
+
+
+    sidecar = sub.add_parser("sidecar")
+    sidecar.add_argument("--host", default="127.0.0.1")
+    sidecar.add_argument("--port", type=int, default=8766)
+    sidecar.add_argument("--reload", action="store_true")
 
     generate = sub.add_parser("generate-song")
     generate.add_argument("prompt")
@@ -54,6 +61,17 @@ def main() -> None:
     package.add_argument("--notes", default=None)
 
     args = parser.parse_args()
+
+
+    if args.command == "sidecar":
+        print(f"Starting Suno sidecar at http://{args.host}:{args.port}")
+        uvicorn.run(
+            "sidecar.suno_sidecar:app",
+            host=args.host,
+            port=args.port,
+            reload=args.reload,
+        )
+        return
 
     if args.command == "generate-song":
         generate_song(
