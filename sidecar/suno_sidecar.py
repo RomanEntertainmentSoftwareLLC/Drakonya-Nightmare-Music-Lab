@@ -15,6 +15,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from app.core.paths import project_root
+from sidecar.browser_controller import browser_status, close_browser, open_suno_page
 
 
 JobState = Literal[
@@ -391,6 +392,23 @@ def download_job(sidecar_job_id: str, body: DownloadScanBody | None = None) -> d
         raise HTTPException(status_code=404, detail=job.notes)
 
     return asdict(job)
+
+
+
+@app.post("/suno/browser/open")
+def browser_open(body: OpenSunoBody | None = None) -> dict:
+    url = (body.url if body else None) or os.getenv("SUNO_URL") or "https://suno.com"
+    return open_suno_page(url)
+
+
+@app.get("/suno/browser/status")
+def browser_status_endpoint() -> dict:
+    return browser_status()
+
+
+@app.post("/suno/browser/close")
+def browser_close() -> dict:
+    return close_browser()
 
 
 @app.get("/")
