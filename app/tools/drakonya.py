@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import uvicorn
 
+from app.tools.doctor import doctor
 from app.tools.fetch_provider_downloads import fetch_provider_downloads
 from app.tools.generate_song import generate_song
 from app.tools.jobs_status import jobs_status
@@ -16,6 +17,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Drakonya Nightmare Music Lab unified CLI.")
     sub = parser.add_subparsers(dest="command", required=True)
 
+
+    doctor_cmd = sub.add_parser("doctor")
+    doctor_cmd.add_argument("--sidecar-url", default="http://127.0.0.1:8766")
 
     sidecar = sub.add_parser("sidecar")
     sidecar.add_argument("--host", default="127.0.0.1")
@@ -67,6 +71,9 @@ def main() -> None:
 
     args = parser.parse_args()
 
+
+    if args.command == "doctor":
+        raise SystemExit(doctor(args.sidecar_url))
 
     if args.command == "sidecar":
         print(f"Starting Suno sidecar at http://{args.host}:{args.port}")
