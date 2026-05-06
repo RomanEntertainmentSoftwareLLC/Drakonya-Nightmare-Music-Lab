@@ -7,6 +7,7 @@ from app.tools.fetch_provider_downloads import fetch_provider_downloads
 from app.tools.generate_song import generate_song
 from app.tools.jobs_status import jobs_status
 from app.tools.package_song_release import package_song_release
+from app.tools.pipeline_status import pipeline_status
 from app.tools.select_job_winner import select_job_winner
 from app.tools.watch_downloads import watch_downloads
 
@@ -29,6 +30,10 @@ def main() -> None:
     generate.add_argument("--provider", default="manual_suno")
     generate.add_argument("--instrumental", action="store_true")
     generate.add_argument("--private", action="store_true")
+
+
+    pipe_status = sub.add_parser("status")
+    pipe_status.add_argument("--batch", default=None)
 
     status = sub.add_parser("jobs-status")
     status.add_argument("--batch", default=None)
@@ -83,6 +88,10 @@ def main() -> None:
             instrumental=args.instrumental,
             private=args.private,
         )
+
+    elif args.command == "status":
+        raise SystemExit(pipeline_status(args.batch))
+
     elif args.command == "jobs-status":
         raise SystemExit(jobs_status(args.batch))
     elif args.command == "fetch-downloads":
