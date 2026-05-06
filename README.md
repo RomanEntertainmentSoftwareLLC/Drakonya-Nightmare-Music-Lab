@@ -39,3 +39,14 @@ Rejected tracks go to:
 
 Also known as Electro Slop.
 # Drakonya-Nightmare-Music-Lab
+
+# Personal Notes
+
+## Windows Powershell:
+RUN CHROMEDRIVER:
+cd C:\tools\chromedriver-win64
+.\chromedriver.exe --port=9515 --host=0.0.0.0 --allowed-ips=
+
+## Visual Studio Code Terminal (Ubuntu):
+RUN SIDECAR:
+python3 -m app.tools.drakonya sidecar

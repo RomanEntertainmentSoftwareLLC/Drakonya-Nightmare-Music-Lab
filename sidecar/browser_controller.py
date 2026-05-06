@@ -46,9 +46,15 @@ def webdriver_url() -> str:
     return f"http://{host}:{port}"
 
 
+def _chrome_user_data_dir() -> str:
+    return os.getenv("SUNO_CHROME_USER_DATA_DIR", r"C:\\tools\\drakonya-suno-chrome-profile")
+
+
 def _create_driver():
     options = Options()
     options.add_argument("--start-maximized")
+    options.add_argument(f"--user-data-dir={_chrome_user_data_dir()}")
+    options.add_argument("--profile-directory=Default")
 
     return webdriver.Remote(
         command_executor=webdriver_url(),
@@ -71,6 +77,7 @@ def open_suno_page(url: str = "https://suno.com") -> dict:
         "url": _DRIVER.current_url,
         "title": _DRIVER.title,
         "webdriver_url": webdriver_url(),
+        "chrome_user_data_dir": _chrome_user_data_dir(),
         "download_dir": str(_download_dir()),
         "notes": "Opened Suno using remote Selenium ChromeDriver.",
     }
@@ -80,6 +87,7 @@ def browser_status() -> dict:
     return {
         "driver_active": _DRIVER is not None,
         "webdriver_url": webdriver_url(),
+        "chrome_user_data_dir": _chrome_user_data_dir(),
         "current_url": _DRIVER.current_url if _DRIVER else "",
         "download_dir": str(_download_dir()),
     }
